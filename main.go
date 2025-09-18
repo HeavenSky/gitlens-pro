@@ -143,7 +143,7 @@ func getLatestGitLensPath(extensionsDir string) (string, error) {
 	}
 
 	var gitLensDirs []string
-	pattern := regexp.MustCompile(`^eamodio\.gitlens-\d+\.\d+\.\d+$`)
+	pattern := regexp.MustCompile(`^eamodio\.gitlens-\d+\.\d+\.\d+(?:-universal)?$`)
 
 	for _, entry := range entries {
 		if entry.IsDir() && pattern.MatchString(entry.Name()) {
@@ -191,7 +191,7 @@ func promptForSelection(maxChoice int) int {
 
 // 添加版本检测函数
 func isVersion15(dirName string) bool {
-	pattern := regexp.MustCompile(`^eamodio\.gitlens-15\.\d+\.\d+$`)
+	pattern := regexp.MustCompile(`^eamodio\.gitlens-15\.\d+\.\d+(?:-universal)?$`)
 	return pattern.MatchString(dirName)
 }
 
