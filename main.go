@@ -280,16 +280,16 @@ func processVersion15File(filePath string, content []byte) error {
 
 // 处理 16.x 版本的文件
 func processVersion16File(filePath string, content []byte) error {
-	// 查找匹配模式
-	pattern := regexp.MustCompile(`let ([a-zA-Z])={id:e\.user\.id,name:`)
+	// 查找匹配模式 - 支持多字母变量名（如 let a,b,c={id:e.user.id,name:）
+	pattern := regexp.MustCompile(`let ([a-zA-Z,]+)=\{id:e\.user\.id,name:e\.user\.name`)
 	matches := pattern.FindStringSubmatch(string(content))
 
 	if len(matches) < 2 {
 		return fmt.Errorf("未找到匹配模式")
 	}
 
-	matchedLetter := matches[1]
-	exactMatch := fmt.Sprintf("let %s={id:e.user.id,name:", matchedLetter)
+	matchedVariables := matches[1]
+	exactMatch := fmt.Sprintf("let %s={id:e.user.id,name:e.user.name", matchedVariables)
 
 	// 注入激活代码
 	newContent := strings.Replace(string(content), exactMatch, insertCode+exactMatch, 1)
@@ -300,7 +300,7 @@ func processVersion16File(filePath string, content []byte) error {
 	}
 
 	fmt.Printf("成功修改文件: %s\n", filePath)
-	fmt.Printf("匹配的变量: %s\n", matchedLetter)
+	fmt.Printf("匹配的变量: %s\n", matchedVariables)
 
 	return nil
 }
