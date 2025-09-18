@@ -111,10 +111,18 @@ func main() {
 		return
 	}
 
+	// 获取目录名以检查版本
+	dirName := filepath.Base(extensionPath)
+
 	// 需要修改的文件列表
 	filesToModify := []string{
 		filepath.Join(extensionPath, "dist", "gitlens.js"),
 		filepath.Join(extensionPath, "dist", "browser", "gitlens.js"),
+	}
+
+	// 如果是版本17，添加graph.js文件
+	if isVersion17(dirName) {
+		filesToModify = append(filesToModify, filepath.Join(extensionPath, "dist", "webviews", "graph.js"))
 	}
 
 	// 处理每个文件
@@ -195,6 +203,11 @@ func isVersion15(dirName string) bool {
 	return pattern.MatchString(dirName)
 }
 
+func isVersion17(dirName string) bool {
+	pattern := regexp.MustCompile(`^eamodio\.gitlens-17\.\d+\.\d+(?:-universal)?$`)
+	return pattern.MatchString(dirName)
+}
+
 // 修改 processFile 函数
 func processFile(filePath string) error {
 	// 检查文件是否存在
@@ -219,9 +232,16 @@ func processFile(filePath string) error {
 
 	// 获取目录名以检查版本
 	dirName := filepath.Base(filepath.Dir(filepath.Dir(filePath)))
+
 	if isVersion15(dirName) {
 		return processVersion15File(filePath, content)
 	}
+
+	if isVersion17(dirName) {
+		return processVersion17File(filePath, content)
+	}
+
+	// 默认使用版本16的处理方式
 	return processVersion16File(filePath, content)
 }
 
@@ -281,6 +301,54 @@ func processVersion16File(filePath string, content []byte) error {
 
 	fmt.Printf("成功修改文件: %s\n", filePath)
 	fmt.Printf("匹配的变量: %s\n", matchedLetter)
+
+	return nil
+}
+
+// 处理 17.x 版本的文件
+func processVersion17File(filePath string, content []byte) error {
+	fmt.Printf("处理版本17的文件: %s\n", filePath)
+	// 先执行版本16的处理方法
+	if err := processVersion16File(filePath, content); err != nil {
+		return err
+	}
+
+	// 如果是graph.js文件，再执行版本17的额外处理
+	if strings.Contains(filePath, "webviews") && strings.Contains(filePath, "graph.js") {
+		// 重新读取文件内容
+		updatedContent, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("重新读取文件失败: %v", err)
+		}
+		return processVersion17GraphFile(filePath, updatedContent)
+	}
+
+	return nil
+}
+
+// 处理 17.x 版本的graph.js文件
+func processVersion17GraphFile(filePath string, content []byte) error {
+	contentStr := string(content)
+
+	// 查找匹配模式 - 对应JavaScript中的 /(\(|=)(this\.(graphS|s)tate\.allowed)/g
+	pattern := regexp.MustCompile(`(\(|=)(this\.(graphS|s)tate\.allowed)`)
+	matches := pattern.FindAllStringSubmatch(contentStr, -1)
+
+	if len(matches) == 0 {
+		fmt.Printf("在文件中未找到匹配模式: %s\n", filePath)
+		return nil // 不报错，只是跳过
+	}
+
+	// 替换所有匹配项，在匹配的变量前添加感叹号
+	newContent := pattern.ReplaceAllString(contentStr, `$1!$2`)
+
+	// 写入修改后的内容
+	if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+
+	fmt.Printf("成功修改文件: %s\n", filePath)
+	fmt.Printf("找到 %d 个匹配项\n", len(matches))
 
 	return nil
 }
